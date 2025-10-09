@@ -187,7 +187,7 @@ class AudioLoop:
             await self.out_queue.put({"data": data, "mime_type": "audio/pcm"})
 
     async def receive_audio(self):
-        "Background task to read from the websocket and display text/transcriptions"
+        "Background task to read from the websocket and display transcriptions only"
         while True:
             if self.session is None:
                 print("Session is not initialized. Unable to receive data.")
@@ -200,11 +200,7 @@ class AudioLoop:
                 if response.server_content and response.server_content.input_transcription:
                     transcription_text = response.server_content.input_transcription.text
                     if transcription_text:
-                        print(f"\n[You said]: {transcription_text}")
-
-                # Display Gemini's text response
-                if text := response.text:
-                    print(f"\n[Gemini]: {text}", end="")
+                        print(f"{transcription_text}")
 
     async def play_audio(self):
         stream = await asyncio.to_thread(
@@ -232,10 +228,11 @@ class AudioLoop:
                 send_text_task = tg.create_task(self.send_text())
                 tg.create_task(self.send_realtime())
                 tg.create_task(self.listen_audio())
-                if self.video_mode == "camera":
-                    tg.create_task(self.get_frames())
-                elif self.video_mode == "screen":
-                    tg.create_task(self.get_screen())
+                # Video/screen disabled - transcription only mode
+                # if self.video_mode == "camera":
+                #     tg.create_task(self.get_frames())
+                # elif self.video_mode == "screen":
+                #     tg.create_task(self.get_screen())
 
                 tg.create_task(self.receive_audio())
                 # Text-only mode - no audio playback needed
