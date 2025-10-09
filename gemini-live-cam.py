@@ -49,17 +49,16 @@ tools = [
 
 # While Gemini 2.0 Flash is in experimental preview mode, only one of AUDIO or
 # TEXT may be passed here.
-CONFIG = types.LiveConnectConfig(
-    response_modalities=[
-        types.Modality.AUDIO,
-    ],
-    speech_config=types.SpeechConfig(
+CONFIG = {
+    "response_modalities": ["AUDIO"],
+    "speech_config": types.SpeechConfig(
         voice_config=types.VoiceConfig(
             prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Leda")
         )
     ),
-    tools=types.ToolListUnion(tools),
-)
+    "tools": tools,
+    "input_audio_transcription": {},
+}
 
 pya = pyaudio.PyAudio()
 
@@ -206,8 +205,16 @@ class AudioLoop:
                 if data := response.data:
                     self.audio_in_queue.put_nowait(data)
                     continue
+
+                # Display transcription of user's speech (input audio transcription)
+                if response.server_content and response.server_content.input_transcription:
+                    transcription_text = response.server_content.input_transcription.text
+                    if transcription_text:
+                        print(f"\n[You said]: {transcription_text}")
+
+                # Display Gemini's text response
                 if text := response.text:
-                    print(text, end="")
+                    print(f"\n[Gemini]: {text}", end="")
 
             # If you interrupt the model, it sends a turn_complete.
             # For interruptions to work, we need to stop playback.
