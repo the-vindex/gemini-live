@@ -47,15 +47,9 @@ tools = [
     types.Tool(google_search=types.GoogleSearch()),
 ]
 
-# While Gemini 2.0 Flash is in experimental preview mode, only one of AUDIO or
-# TEXT may be passed here.
+# Configured for TEXT-only responses to get transcriptions without audio playback
 CONFIG = {
-    "response_modalities": ["AUDIO"],
-    "speech_config": types.SpeechConfig(
-        voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Leda")
-        )
-    ),
+    "response_modalities": ["TEXT"],
     "tools": tools,
     "input_audio_transcription": {},
 }
@@ -193,7 +187,7 @@ class AudioLoop:
             await self.out_queue.put({"data": data, "mime_type": "audio/pcm"})
 
     async def receive_audio(self):
-        "Background task to reads from the websocket and write pcm chunks to the output queue"
+        "Background task to read from the websocket and display text/transcriptions"
         while True:
             if self.session is None:
                 print("Session is not initialized. Unable to receive data.")
@@ -202,10 +196,6 @@ class AudioLoop:
 
             turn = self.session.receive()
             async for response in turn:
-                if data := response.data:
-                    self.audio_in_queue.put_nowait(data)
-                    continue
-
                 # Display transcription of user's speech (input audio transcription)
                 if response.server_content and response.server_content.input_transcription:
                     transcription_text = response.server_content.input_transcription.text
@@ -215,13 +205,6 @@ class AudioLoop:
                 # Display Gemini's text response
                 if text := response.text:
                     print(f"\n[Gemini]: {text}", end="")
-
-            # If you interrupt the model, it sends a turn_complete.
-            # For interruptions to work, we need to stop playback.
-            # So empty out the audio queue because it may have loaded
-            # much more audio than has played yet.
-            while not self.audio_in_queue.empty():
-                self.audio_in_queue.get_nowait()
 
     async def play_audio(self):
         stream = await asyncio.to_thread(
@@ -255,7 +238,8 @@ class AudioLoop:
                     tg.create_task(self.get_screen())
 
                 tg.create_task(self.receive_audio())
-                tg.create_task(self.play_audio())
+                # Text-only mode - no audio playback needed
+                # tg.create_task(self.play_audio())
 
                 await send_text_task
                 raise asyncio.CancelledError("User requested exit")
