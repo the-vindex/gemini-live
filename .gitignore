@@ -1,3 +1,4 @@
 *.env
 .vscode
-gem-env__pycache__/
+gem-env/
+__pycache__/
